@@ -1,0 +1,6 @@
+{
+  "name": "Frenzo",
+  "description": "Frenzo is a high-performance, industrial-themed financial command center for tracking expenses, budgets, savings goals, and debts with precision.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

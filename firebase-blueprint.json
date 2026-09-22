@@ -1,0 +1,160 @@
+{
+  "entities": {
+    "Transaction": {
+      "title": "Transaction",
+      "description": "A financial transaction (income or expense).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The unique ID of the transaction." },
+        "type": { "type": "string", "enum": ["income", "expense"], "description": "The type of transaction." },
+        "amount": { "type": "number", "description": "The amount of the transaction." },
+        "category": { "type": "string", "description": "The category of the transaction." },
+        "date": { "type": "string", "format": "date-time", "description": "The date and time of the transaction." },
+        "description": { "type": "string", "description": "A description of the transaction." },
+        "uid": { "type": "string", "description": "The user ID of the transaction owner." }
+      },
+      "required": ["type", "amount", "category", "date", "uid"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "A category for transactions.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The unique ID of the category." },
+        "name": { "type": "string", "description": "The name of the category." },
+        "type": { "type": "string", "enum": ["income", "expense"], "description": "The type of category." },
+        "icon": { "type": "string", "description": "The icon name for the category." },
+        "uid": { "type": "string", "description": "The user ID of the category owner." }
+      },
+      "required": ["name", "type", "uid"]
+    },
+    "Budget": {
+      "title": "Budget",
+      "description": "A budget for a specific category.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The unique ID of the budget." },
+        "category": { "type": "string", "description": "The category the budget applies to." },
+        "amount": { "type": "number", "description": "The budgeted amount." },
+        "period": { "type": "string", "description": "The period of the budget (e.g., monthly)." },
+        "uid": { "type": "string", "description": "The user ID of the budget owner." }
+      },
+      "required": ["category", "amount", "period", "uid"]
+    },
+    "Debt": {
+      "title": "Debt",
+      "description": "A record of money borrowed or lent.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The unique ID of the debt." },
+        "type": { "type": "string", "enum": ["borrow", "lend"], "description": "The type of debt." },
+        "person": { "type": "string", "description": "The person involved in the debt." },
+        "amount": { "type": "number", "description": "The amount of the debt." },
+        "dueDate": { "type": "string", "format": "date-time", "description": "The due date of the debt." },
+        "status": { "type": "string", "enum": ["pending", "paid"], "description": "The status of the debt." },
+        "uid": { "type": "string", "description": "The user ID of the debt owner." },
+        "description": { "type": "string", "description": "A description of the debt." },
+        "date": { "type": "string", "format": "date-time", "description": "The date the debt was recorded." }
+      },
+      "required": ["type", "person", "amount", "status", "uid", "date"]
+    },
+    "Challenge": {
+      "title": "Challenge",
+      "description": "A financial challenge (e.g., no-spend week, savings goal).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The unique ID of the challenge." },
+        "title": { "type": "string", "description": "The title of the challenge." },
+        "description": { "type": "string", "description": "A description of the challenge." },
+        "targetAmount": { "type": "number", "description": "The target amount for the challenge." },
+        "currentAmount": { "type": "number", "description": "The current amount achieved." },
+        "startDate": { "type": "string", "format": "date-time", "description": "The start date of the challenge." },
+        "endDate": { "type": "string", "format": "date-time", "description": "The end date of the challenge." },
+        "type": { "type": "string", "enum": ["no-spend", "savings", "budget"], "description": "The type of challenge." },
+        "status": { "type": "string", "enum": ["active", "completed", "failed"], "description": "The status of the challenge." },
+        "uid": { "type": "string", "description": "The user ID of the challenge owner." }
+      },
+      "required": ["title", "description", "targetAmount", "currentAmount", "startDate", "endDate", "type", "status", "uid"]
+    },
+    "EMI": {
+      "title": "EMI",
+      "description": "An Equated Monthly Installment record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The unique ID of the EMI." },
+        "title": { "type": "string", "description": "The title of the EMI (e.g., Car Loan)." },
+        "source": { "type": "string", "description": "The source of the EMI (person or app)." },
+        "totalAmount": { "type": "number", "description": "The total amount to be paid including interest." },
+        "principalAmount": { "type": "number", "description": "The original principal amount." },
+        "interestAmount": { "type": "number", "description": "The total interest amount." },
+        "monthlyInstallment": { "type": "number", "description": "The monthly payment amount." },
+        "tenure": { "type": "integer", "description": "The total number of installments." },
+        "paidInstallments": { "type": "integer", "description": "The number of installments already paid." },
+        "startDate": { "type": "string", "format": "date-time", "description": "The start date of the EMI." },
+        "nextDueDate": { "type": "string", "format": "date-time", "description": "The next payment due date." },
+        "status": { "type": "string", "enum": ["active", "completed", "cancelled"], "description": "The status of the EMI." },
+        "uid": { "type": "string", "description": "The user ID of the EMI owner." },
+        "description": { "type": "string", "description": "Additional details about the EMI." },
+        "monthlySchedule": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "installmentNumber": { "type": "integer" },
+              "amount": { "type": "number" },
+              "dueDate": { "type": "string", "format": "date-time" },
+              "status": { "type": "string", "enum": ["pending", "paid"] }
+            },
+            "required": ["installmentNumber", "amount", "dueDate", "status"]
+          },
+          "description": "A custom schedule for monthly installments."
+        }
+      },
+      "required": ["title", "source", "totalAmount", "principalAmount", "interestAmount", "monthlyInstallment", "tenure", "paidInstallments", "startDate", "nextDueDate", "status", "uid"]
+    },
+    "EMIPayment": {
+      "title": "EMIPayment",
+      "description": "A record of an EMI installment payment.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The unique ID of the payment." },
+        "emiId": { "type": "string", "description": "The ID of the associated EMI." },
+        "amount": { "type": "number", "description": "The amount paid." },
+        "date": { "type": "string", "format": "date-time", "description": "The date of the payment." },
+        "installmentNumber": { "type": "integer", "description": "The installment number (e.g., 1, 2, 3)." },
+        "uid": { "type": "string", "description": "The user ID of the payment owner." }
+      },
+      "required": ["emiId", "amount", "date", "installmentNumber", "uid"]
+    }
+  },
+  "firestore": {
+    "/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "A collection of financial transactions."
+    },
+    "/categories/{categoryId}": {
+      "schema": "Category",
+      "description": "A collection of transaction categories."
+    },
+    "/budgets/{budgetId}": {
+      "schema": "Budget",
+      "description": "A collection of budgets."
+    },
+    "/debts/{debtId}": {
+      "schema": "Debt",
+      "description": "A collection of debts (borrowed or lent)."
+    },
+    "/challenges/{challengeId}": {
+      "schema": "Challenge",
+      "description": "A collection of financial challenges."
+    },
+    "/emis/{emiId}": {
+      "schema": "EMI",
+      "description": "A collection of EMI records."
+    },
+    "/emiPayments/{paymentId}": {
+      "schema": "EMIPayment",
+      "description": "A collection of EMI payment records."
+    }
+  }
+}
