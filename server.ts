@@ -35,6 +35,56 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
 });
 
+
+// Basic per-IP protection for public AI endpoints. For multi-instance production,
+// replace this in-memory limiter with a shared store (for example Redis).
+const aiRequestWindows = new Map<string, { count: number; resetAt: number }>();
+app.use('/api/gemini', (req, res, next) => {
+  const now = Date.now();
+  const key = req.ip || req.socket.remoteAddress || 'unknown';
+  const current = aiRequestWindows.get(key);
+  if (!current || now >= current.resetAt) {
+    aiRequestWindows.set(key, { count: 1, resetAt: now + 60_000 });
+    return next();
+  }
+  if (current.count >= 30) {
+    return res.status(429).json({ error: 'AI request limit reached. Please try again in a minute.' });
+  }
+  current.count += 1;
+  return next();
+});
+
+// Dashboard financial insights. Gemini remains server-side; the browser sends
+// only the small transaction summary needed to generate the tips.
+app.post('/api/gemini/financial-insights', async (req, res) => {
+  try {
+    const transactions = req.body?.transactions;
+    if (!Array.isArray(transactions) || transactions.length === 0 || transactions.length > 20) {
+      return res.status(400).json({ error: 'Provide between 1 and 20 transactions.' });
+    }
+
+    const safeTransactions = transactions.map((item: any) => ({
+      type: String(item?.type || 'expense').slice(0, 20),
+      amount: Number(item?.amount) || 0,
+      category: String(item?.category || 'Other').slice(0, 60),
+      date: String(item?.date || '').slice(0, 10),
+    }));
+
+    const ai = getGeminiClient();
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.6-flash',
+      contents: `Analyze these recent financial transactions and provide exactly 3 brief, practical, actionable financial tips. Use a friendly, clear tone and Markdown bullets. Avoid claiming certainty from this limited sample. Transactions: ${JSON.stringify(safeTransactions)}`,
+    });
+
+    const insights = response.text?.trim();
+    if (!insights) throw new Error('The AI service returned an empty response.');
+    return res.json({ success: true, insights });
+  } catch (err: any) {
+    console.error('Financial insights generation failed:', err);
+    return res.status(500).json({ error: 'Unable to generate financial insights right now. Please try again later.' });
+  }
+});
+
 // Gemini Receipt OCR Endpoint
 app.post('/api/gemini/scan-receipt', async (req, res) => {
   try {
@@ -97,7 +147,7 @@ app.post('/api/gemini/scan-receipt', async (req, res) => {
     return res.json({ success: true, data: parsedData });
   } catch (err: any) {
     console.error('Error scanning receipt with Gemini Vision:', err);
-    return res.status(500).json({ error: err.message || 'Failed to analyze receipt image with AI.' });
+    return res.status(500).json({ error: 'Failed to analyze receipt image with AI. Please try again.' });
   }
 });
 
