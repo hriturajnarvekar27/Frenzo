@@ -1,6 +1,6 @@
 {
   "name": "Frenzo",
-  "description": "Frenzo is a high-performance, industrial-themed financial command center for tracking expenses, budgets, savings goals, and debts with precision.",
+  "description": "Frenzo is an industrial-themed financial command center featuring a Conversational Financial Copilot, Bank Statement CSV Importer with AI auto-categorization, savings roadmaps, budgets, and debts with precision.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

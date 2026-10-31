@@ -96,10 +96,14 @@ import { Transaction, Budget, Summary, TransactionType, OperationType, Debt, Deb
 import { cn } from './lib/utils';
 import { SavingsGoalsManager } from './components/SavingsGoalsManager';
 import { ReceiptScannerModal } from './components/ReceiptScannerModal';
+import { FinancialCopilotModal } from './components/FinancialCopilotModal';
+import { CsvImporterModal } from './components/CsvImporterModal';
 import { GoogleGenAI } from "@google/genai";
 import ReactMarkdown from 'react-markdown';
 import html2canvas from 'html2canvas';
 import { 
+  Bot,
+  FileSpreadsheet,
   Plus, 
   Minus, 
   Wallet, 
@@ -564,6 +568,8 @@ export default function App() {
     ];
   });
   const [showReceiptScannerModal, setShowReceiptScannerModal] = useState(false);
+  const [showFinancialCopilotModal, setShowFinancialCopilotModal] = useState(false);
+  const [showCsvImporterModal, setShowCsvImporterModal] = useState(false);
 
   // Payment Request & UPI QR States
   const [paymentProfile, setPaymentProfile] = useState<PaymentProfile | null>(null);
@@ -1367,6 +1373,61 @@ export default function App() {
     setShowReceiptScannerModal(false);
   };
 
+  const handleBatchImportTransactions = async (newTxList: Array<{
+    amount: number;
+    category: string;
+    description: string;
+    type: 'expense' | 'income';
+    date: Timestamp;
+  }>) => {
+    if (user) {
+      try {
+        await Promise.all(
+          newTxList.map(tx => 
+            addDoc(collection(db, 'transactions'), {
+              ...tx,
+              uid: user.uid,
+            })
+          )
+        );
+      } catch (e) {
+        console.error("Failed to batch import transactions to Firestore:", e);
+      }
+    } else {
+      const demoItems: Transaction[] = newTxList.map((tx, idx) => ({
+        id: `tx_csv_${Date.now()}_${idx}`,
+        ...tx,
+        uid: 'demo',
+      }));
+      setTransactions(prev => [...demoItems, ...prev]);
+    }
+  };
+
+  const handleAddTransactionFromCopilot = async (tx: {
+    amount: number;
+    category: string;
+    description: string;
+    type: 'expense' | 'income';
+    date: Timestamp;
+  }) => {
+    if (user) {
+      try {
+        await addDoc(collection(db, 'transactions'), {
+          ...tx,
+          uid: user.uid,
+        });
+      } catch (e) {
+        console.error("Failed to add transaction from copilot:", e);
+      }
+    } else {
+      setTransactions(prev => [{
+        id: 'tx_copilot_' + Date.now(),
+        ...tx,
+        uid: 'demo',
+      }, ...prev]);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-tech-bg flex items-center justify-center">
@@ -1628,6 +1689,26 @@ export default function App() {
             </AnimatePresence>
           </div>
 
+          {/* Financial Copilot Header Quick Trigger */}
+          <button
+            onClick={() => setShowFinancialCopilotModal(true)}
+            className="p-2 md:p-3.5 bg-tech-card clay-card rounded-full transition-all border border-tech-lime/30 text-tech-lime hover:brightness-110 hover:shadow-[0_0_20px_rgba(165,243,68,0.25)] flex items-center gap-1.5"
+            title="Open Frenzo Financial Copilot"
+          >
+            <Bot size={18} className="md:w-5 md:h-5 text-tech-lime" />
+            <span className="text-[10px] font-black uppercase tracking-wider hidden xl:inline text-white">Copilot</span>
+          </button>
+
+          {/* Bank Statement CSV Importer Header Quick Trigger */}
+          <button
+            onClick={() => setShowCsvImporterModal(true)}
+            className="p-2 md:p-3.5 bg-tech-card clay-card rounded-full transition-all border border-white/10 text-slate-400 hover:text-white hover:border-indigo-400/40 flex items-center gap-1.5"
+            title="Import Bank Statement CSV"
+          >
+            <FileSpreadsheet size={18} className="md:w-5 md:h-5 text-indigo-400" />
+            <span className="text-[10px] font-black uppercase tracking-wider hidden xl:inline">Import CSV</span>
+          </button>
+
           <button
             onClick={() => setActiveTab('settings')}
             className={cn(
@@ -1664,10 +1745,9 @@ export default function App() {
       </header>
 
       {/* Floating Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 w-full flex justify-center p-4 md:p-8 z-50 pointer-events-none">
-        <div className="pointer-events-auto flex flex-col items-center gap-4 w-full max-w-lg">
-          {/* More Menu Popover */}
-          <nav className="floating-nav !relative !bottom-0 !left-0 !transform-none shadow-2xl !px-2 md:!px-6">
+      <div className="fixed bottom-0 left-0 w-full flex justify-center p-2 sm:p-4 md:p-8 z-50 pointer-events-none">
+        <div className="pointer-events-auto flex flex-col items-center gap-4 w-auto max-w-full">
+          <nav className="floating-nav !relative !bottom-0 !left-0 !transform-none shadow-2xl">
             {[
               { id: 'dashboard', icon: LayoutDashboard, label: 'Home' },
               { id: 'transactions', icon: ArrowLeftRight, label: 'Ledger' },
@@ -1686,9 +1766,10 @@ export default function App() {
                   "nav-pod",
                   activeTab === item.id ? "active" : "text-slate-500 hover:text-tech-white"
                 )}
+                title={item.label}
               >
-                <item.icon size={20} className="md:w-6 md:h-6" />
-                <span className="text-[7px] md:text-[9px] font-bold uppercase tracking-tighter mt-1">{item.label}</span>
+                <item.icon className="w-4 h-4 sm:w-5 sm:h-5 text-current shrink-0" />
+                <span className="text-[6.5px] sm:text-[8px] md:text-[8.5px] font-bold uppercase tracking-tight leading-none mt-1 select-none">{item.label}</span>
               </button>
             ))}
           </nav>
@@ -2029,11 +2110,14 @@ export default function App() {
                   </div>
                   <div className="grid grid-cols-3 md:flex md:flex-wrap justify-center md:justify-end gap-3 md:gap-6 w-full md:w-auto">
                     {[
-                      { id: 'add-tx', icon: Plus, label: 'Add Entry', color: 'bg-tech-lime text-tech-black', onClick: () => setShowAddModal(true) },
+                      { id: 'copilot', icon: Bot, label: 'AI Copilot', color: 'bg-tech-lime text-tech-black', onClick: () => setShowFinancialCopilotModal(true) },
+                      { id: 'import-csv', icon: FileSpreadsheet, label: 'Import CSV', color: 'bg-indigo-400 text-tech-black', onClick: () => setShowCsvImporterModal(true) },
+                      { id: 'add-tx', icon: Plus, label: 'Add Entry', color: 'bg-tech-white text-tech-black', onClick: () => setShowAddModal(true) },
+                      { id: 'analysis', icon: LineChart, label: 'Analysis', color: 'bg-purple-400 text-tech-black', onClick: () => setActiveTab('analysis') },
                       { id: 'scan-receipt', icon: Scan, label: 'AI OCR Scan', color: 'bg-emerald-400 text-tech-black', onClick: () => setShowReceiptScannerModal(true) },
                       { id: 'add-goal', icon: Target, label: 'Roadmap', color: 'bg-cyan-400 text-tech-black', onClick: () => setActiveTab('goals') },
                       { id: 'add-budget', icon: Target, label: 'Set Limit', color: 'bg-tech-orange text-tech-black', onClick: () => setShowBudgetModal(true) },
-                      { id: 'add-debt', icon: HandCoins, label: 'Add Debt', color: 'bg-tech-white text-tech-black', onClick: () => setShowDebtModal(true) },
+                      { id: 'add-debt', icon: HandCoins, label: 'Add Debt', color: 'bg-amber-400 text-tech-black', onClick: () => setShowDebtModal(true) },
                     ].map((action) => (
                       <button 
                         key={action.id}
@@ -2100,10 +2184,26 @@ export default function App() {
                 </select>
 
                 <button
-                  onClick={exportToCSV}
-                  className="flex items-center gap-3 px-6 py-4 bg-tech-gray hover:bg-tech-lime hover:text-tech-black text-tech-lime rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-tech-lime/20 shadow-lg"
+                  onClick={() => setShowCsvImporterModal(true)}
+                  className="flex items-center gap-2 px-5 py-4 bg-tech-lime text-tech-black hover:brightness-110 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(165,243,68,0.25)]"
                 >
-                  <Download size={18} />
+                  <FileSpreadsheet size={16} />
+                  Import Statement
+                </button>
+
+                <button
+                  onClick={() => setShowFinancialCopilotModal(true)}
+                  className="flex items-center gap-2 px-5 py-4 bg-tech-inset hover:bg-tech-gray text-tech-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-tech-lime/30"
+                >
+                  <Bot size={16} className="text-tech-lime" />
+                  Ask Copilot
+                </button>
+
+                <button
+                  onClick={exportToCSV}
+                  className="flex items-center gap-3 px-5 py-4 bg-tech-gray hover:bg-tech-lime hover:text-tech-black text-tech-lime rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-tech-lime/20 shadow-lg"
+                >
+                  <Download size={16} />
                   Export
                 </button>
               </div>
@@ -2262,6 +2362,49 @@ export default function App() {
         onClose={() => setShowReceiptScannerModal(false)}
         onSaveExpense={handleAddExpenseFromScan}
       />
+
+      {/* Financial Copilot Modal */}
+      <FinancialCopilotModal
+        isOpen={showFinancialCopilotModal}
+        onClose={() => setShowFinancialCopilotModal(false)}
+        transactions={transactions}
+        budgets={budgets}
+        savingsGoals={savingsGoals}
+        emis={emis}
+        debts={debts}
+        onAddTransaction={handleAddTransactionFromCopilot}
+        onAddSavingsGoal={handleAddSavingsGoal}
+      />
+
+      {/* Bank Statement CSV Importer Modal */}
+      <CsvImporterModal
+        isOpen={showCsvImporterModal}
+        onClose={() => setShowCsvImporterModal(false)}
+        existingTransactions={transactions}
+        onImportTransactions={handleBatchImportTransactions}
+      />
+
+      {/* Floating Persistent AI Copilot Trigger */}
+      <motion.button
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={() => setShowFinancialCopilotModal(true)}
+        className="fixed bottom-24 right-4 sm:bottom-8 sm:right-8 z-40 px-4 py-3.5 rounded-2xl bg-tech-card clay-card border border-tech-lime/40 text-tech-lime shadow-[0_0_25px_rgba(165,243,68,0.25)] flex items-center gap-3 group backdrop-blur"
+        title="Open Frenzo Financial Copilot"
+      >
+        <div className="relative">
+          <Bot size={22} className="group-hover:rotate-12 transition-transform text-tech-lime" />
+          <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-tech-lime animate-ping" />
+          <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-tech-lime" />
+        </div>
+        <div className="flex flex-col text-left">
+          <span className="text-[10px] font-black uppercase tracking-wider text-white font-brand flex items-center gap-1">
+            Copilot
+            <Sparkles size={10} className="text-tech-lime" />
+          </span>
+          <span className="text-[8px] font-mono text-slate-400 hidden sm:inline">Ask AI / Command</span>
+        </div>
+      </motion.button>
 
       {/* Biometric Lock Screen */}
       <AnimatePresence>
