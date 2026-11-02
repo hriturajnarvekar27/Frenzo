@@ -6,3 +6,12 @@ coverage/
 *.log
 .env*
 !.env.example
+# Firebase and cloud credentials
+*service-account*.json
+*service_account*.json
+*firebase-adminsdk*.json
+*.pem
+*.key
+
+# Local Firebase emulator data
+.firebase/

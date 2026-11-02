@@ -10,6 +10,7 @@ import ReactMarkdown from 'react-markdown';
 import { Timestamp } from 'firebase/firestore';
 import { Transaction, Budget, SavingsGoal, EMI, Debt } from '../types';
 import { cn } from '../lib/utils';
+import { apiFetch } from '../lib/secureApi';
 
 interface FinancialCopilotModalProps {
   isOpen: boolean;
@@ -166,7 +167,7 @@ export function FinancialCopilotModal({
     setQuickParseResult(null);
 
     try {
-      const res = await fetch('/api/gemini/parse-quick-action', {
+      const res = await apiFetch('/api/gemini/parse-quick-action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ input: quickInput })
@@ -282,7 +283,7 @@ export function FinancialCopilotModal({
         text: m.text
       }));
 
-      const res = await fetch('/api/gemini/copilot-chat', {
+      const res = await apiFetch('/api/gemini/copilot-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -1,3 +1,4 @@
+import { apiFetch } from '../lib/secureApi';
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -246,7 +247,7 @@ export function CsvImporterModal({
         rawType: r.type,
       }));
 
-      const res = await fetch('/api/gemini/auto-categorize-csv', {
+      const res = await apiFetch('/api/gemini/auto-categorize-csv', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rows: payloadRows })

@@ -2,6 +2,8 @@ import express from 'express';
 import path from 'path';
 import { GoogleGenAI, Type } from '@google/genai';
 import dotenv from 'dotenv';
+import { cert, getApps, initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 
 dotenv.config();
 
@@ -54,6 +56,61 @@ app.use('/api/gemini', (req, res, next) => {
   return next();
 });
 
+
+// Verify Firebase Authentication ID tokens before any Gemini endpoint.
+// Configure FIREBASE_SERVICE_ACCOUNT_JSON as a secret in the hosting platform.
+let firebaseAdminAuth: ReturnType<typeof getAuth> | null = null;
+
+function getFirebaseAdminAuth() {
+  if (firebaseAdminAuth) return firebaseAdminAuth;
+
+  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  if (!serviceAccountJson) {
+    throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON is not configured.');
+  }
+
+  const serviceAccount = JSON.parse(serviceAccountJson);
+  const adminApp = getApps()[0] || initializeApp({
+    credential: cert({
+      projectId: serviceAccount.project_id,
+      clientEmail: serviceAccount.client_email,
+      privateKey: String(serviceAccount.private_key || '').replace(/\\n/g, '\n'),
+    }),
+  });
+
+  firebaseAdminAuth = getAuth(adminApp);
+  return firebaseAdminAuth;
+}
+
+app.use('/api/gemini', async (req, res, next) => {
+  const authorization = req.headers.authorization || '';
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
+
+  if (!match) {
+    return res.status(401).json({ error: 'Authentication required. Please sign in and try again.' });
+  }
+
+  let adminAuth;
+  try {
+    adminAuth = getFirebaseAdminAuth();
+  } catch (error) {
+    console.error('Firebase Admin configuration error:', error);
+    return res.status(503).json({ error: 'AI authentication is not configured on the server.' });
+  }
+
+  try {
+    const decodedToken = await adminAuth.verifyIdToken(match[1], true);
+    if (decodedToken.firebase?.sign_in_provider === 'anonymous') {
+      return res.status(403).json({ error: 'A registered account is required to use Frenzo AI features.' });
+    }
+    res.locals.firebaseUser = decodedToken;
+    return next();
+  } catch (error) {
+    console.warn('Rejected invalid Firebase ID token.');
+    return res.status(401).json({ error: 'Your session is invalid or expired. Please sign in again.' });
+  }
+});
+
 // Dashboard financial insights. Gemini remains server-side; the browser sends
 // only the small transaction summary needed to generate the tips.
 app.post('/api/gemini/financial-insights', async (req, res) => {
@@ -94,7 +151,7 @@ app.post('/api/gemini/scan-receipt', async (req, res) => {
     }
 
     const ai = getGeminiClient();
-    const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+    const cleanBase64 = imageBase64.replace(/^data:[^;]+;base64,/, '');
 
     const imagePart = {
       inlineData: {

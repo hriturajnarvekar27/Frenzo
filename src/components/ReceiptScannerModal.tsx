@@ -1,3 +1,4 @@
+import { apiFetch } from '../lib/secureApi';
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -77,7 +78,7 @@ export function ReceiptScannerModal({ isOpen, onClose, onSaveExpense }: ReceiptS
     setErrorMsg(null);
 
     try {
-      const res = await fetch('/api/gemini/scan-receipt', {
+      const res = await apiFetch('/api/gemini/scan-receipt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageBase64: base64Image, mimeType }),
